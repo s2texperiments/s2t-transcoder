@@ -1,9 +1,10 @@
-# Lambda Function which transcode stereo opus file to mono and transfer it to Google Cloud Storage
+# λ which transcode stereo opus to mono opus via S3
+
 ## Prerequiste
  - Add static ffmpeg binaries to /ffmpeg/
 
 ### Optional
-- zip as cli tool installed (build.sh)
+- zip as cli tool installed (for build.sh)
 
 ## Expected Incoming Data
 ```

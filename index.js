@@ -30,6 +30,15 @@ const collectFFMpegCodec = (codec) => {
     }
 }
 
+const collectExtension = (codec) => {
+    switch (codec) {
+        case "opus":
+            return ".opus"
+        default:
+            throw "unknown codec"
+    }
+}
+
 const dataPath = "/tmp/data";
 const storeInPath = `${dataPath}/in`;
 const storeOutPath = `${dataPath}/out`;
@@ -38,17 +47,13 @@ exports.handler = async (event, context, callback) => {
 
     await exec(`mkdir -p ${dataPath}`);
 
-    //    let result = await readS3({ Bucket: event.in.bucket, Key: event.in.key });
-    let s3In = await readS3({ Bucket: event.in.bucket, Key: event.in.key });
-    await writeFile(storeInPath, s3In.Body);
+    await Promise.all([
+        writeFile(storeInPath, (await readS3({ Bucket: event.in.bucket, Key: event.in.key })).Body),
+        exec(`cp /var/task/ffmpeg/ffmpeg /tmp/.; chmod 755 /tmp/ffmpeg;`)
+    ]);
 
-    //ffmpeg mock
-    await exec(`cp /var/task/ffmpeg/ffmpeg /tmp/.; chmod 755 /tmp/ffmpeg;`);
-    await exec(`/tmp/ffmpeg -y -i ${storeInPath} -acodec ${collectFFMpegCodec(event.out.codec)} -mode mono -ac 1 ${storeOutPath}.opus`);
-
-    let s3Out = await readFile(storeOutPath+'.opus');
-    await putS3({ Bucket: event.out.bucket, Key: event.out.key, Body: s3Out });
-
+    await exec(`/tmp/ffmpeg -y -i ${storeInPath} -acodec ${collectFFMpegCodec(event.out.codec)} -mode mono -ac 1 ${storeOutPath}${collectExtension(event.out.codec)}`);
+    await putS3({ Bucket: event.out.bucket, Key: event.out.key, Body: await readFile(storeOutPath + collectExtension(event.out.codec)) });
 
     callback(null, null);
 };
