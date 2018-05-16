@@ -44,9 +44,9 @@ exports.handler = async (event, context, callback) => {
 
     //ffmpeg mock
     await exec(`cp /var/task/ffmpeg/ffmpeg /tmp/.; chmod 755 /tmp/ffmpeg;`);
-    await exec(`/tmp/ffmpeg -y -i ${storeInPath} -acodec ${collectFFMpegCodec(event.codecOut)} -mode mono -ac 1 ${storeOutPath}`);
+    await exec(`/tmp/ffmpeg -y -i ${storeInPath} -acodec ${collectFFMpegCodec(event.out.codec)} -mode mono -ac 1 ${storeOutPath}.opus`);
 
-    let s3Out = await readFile(storeOutPath);
+    let s3Out = await readFile(storeOutPath+'.opus');
     await putS3({ Bucket: event.out.bucket, Key: event.out.key, Body: s3Out });
 
 
