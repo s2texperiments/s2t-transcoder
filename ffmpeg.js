@@ -1,6 +1,7 @@
 process.env['FFMPEG_PATH'] = '/tmp/ffmpeg';
 process.env['PATH'] = `${process.env['PATH']}:/tmp/:${process.env['LAMBDA_TASK_ROOT']}`;
 
+const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 const writeFile = util.promisify(require('fs').writeFile);
 const readFile = util.promisify(require('fs').readFile);
