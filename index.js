@@ -1,59 +1,51 @@
-process.env.PATH = process.env.PATH + ':/tmp/';
-process.env['FFMPEG_PATH'] = '/tmp/ffmpeg';
-const BIN_PATH = process.env['LAMBDA_TASK_ROOT'];
-process.env['PATH'] = process.env['PATH'] + ':' + BIN_PATH;
+const ffmpeg = require('./ffmpeg.js');
+const s3Api = require('./s3Api.js');
 
-const util = require('util');
-const exec = util.promisify(require('child_process').exec);
-const writeFile = util.promisify(require('fs').writeFile);
-const readFile = util.promisify(require('fs').readFile);
+exports.handler = async (event) => {
 
-const AWS = require('aws-sdk');
-const s3 = new AWS.S3();
-const readS3 = async (params) =>
-    new Promise((resolve, rejected) =>
-        s3.getObject(params, (err, data) =>
-            err ? rejected(err) : resolve(data)));
+    console.log(`REQUEST: ${JSON.stringify(event)}`);
 
-const putS3 = async (params) =>
-    new Promise((resolve, rejected) =>
-        s3.putObject(params, (err, data) =>
-            err ? rejected(err) : resolve(data)));
+    let {Records: [{Sns: {Message}}]} = event;
+    let {
+        "in": {
+            bucket: inBucket,
+            key: inKey
+        },
+        out: {
+            bucket: outBucket,
+            key: outKey,
+            codec
+        }
+    } = JSON.parse(Message);
 
+    console.log('start transcoding');
+    let meta;
+    let outgoingFile = await ffmpeg.transcode(s3Api.getObject({
+            Bucket: inBucket,
+            Key: inKey
+        }).then(e => {
+            meta = e.Metadata;
+            return e;
+        }).then(e => e.Body),
+        getCodecInfo(codec));
 
-const collectFFMpegCodec = (codec) => {
+    console.log('put transcoded file so s3');
+    await s3Api.putObject({
+        Bucket: outBucket,
+        Key: outKey,
+        Body: outgoingFile,
+        Metadata:meta
+    });
+};
+
+const getCodecInfo = (codec) => {
     switch (codec) {
         case "opus":
-            return "libopus"
+            return {
+                codec: "libopus",
+                extension: ".opus"
+            };
         default:
             throw "unknown codec"
     }
-}
-
-const collectExtension = (codec) => {
-    switch (codec) {
-        case "opus":
-            return ".opus"
-        default:
-            throw "unknown codec"
-    }
-}
-
-const dataPath = "/tmp/data";
-const storeInPath = `${dataPath}/in`;
-const storeOutPath = `${dataPath}/out`;
-
-exports.handler = async (event, context, callback) => {
-
-    await exec(`mkdir -p ${dataPath}`);
-
-    await Promise.all([
-        writeFile(storeInPath, (await readS3({ Bucket: event.in.bucket, Key: event.in.key })).Body),
-        exec(`cp /var/task/ffmpeg/ffmpeg /tmp/.; chmod 755 /tmp/ffmpeg;`)
-    ]);
-
-    await exec(`/tmp/ffmpeg -y -i ${storeInPath} -acodec ${collectFFMpegCodec(event.out.codec)} -mode mono -ac 1 ${storeOutPath}${collectExtension(event.out.codec)}`);
-    await putS3({ Bucket: event.out.bucket, Key: event.out.key, Body: await readFile(storeOutPath + collectExtension(event.out.codec)) });
-
-    callback(null, null);
 };
