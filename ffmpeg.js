@@ -12,7 +12,6 @@ const storeOutPath = `${dataPath}/out`;
 
 module.exports = {
 
-
     transcode: async (incomingFilePromise,{ codec, extension} = {}) => {
 
         console.log('create data folder');

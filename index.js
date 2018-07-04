@@ -45,6 +45,11 @@ const getCodecInfo = (codec) => {
                 codec: "libopus",
                 extension: ".opus"
             };
+        case "flac":
+            return {
+                codec: "flac",
+                extension:".flac"
+            };
         default:
             throw "unknown codec"
     }

@@ -1,10 +1,11 @@
-# λ which transcode stereo opus to mono opus via S3
+# Audio Transcoder which use λ and S3
 
 ## Prerequiste
  - Add static ffmpeg binaries to /ffmpeg/
 
-### Optional
-- zip as cli tool installed (for build.sh)
+## Supported codecs
+- opus
+- flac
 
 ## Expected Incoming Data
 ```
@@ -71,5 +72,4 @@
      }
    }
  }
-
 ```
