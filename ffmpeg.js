@@ -3,28 +3,20 @@ process.env['PATH'] = `${process.env['PATH']}:/tmp/:${process.env['LAMBDA_TASK_R
 
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
-const writeFile = util.promisify(require('fs').writeFile);
 const readFile = util.promisify(require('fs').readFile);
-
-const dataPath = "/tmp/data";
-const storeInPath = `${dataPath}/in`;
-const storeOutPath = `${dataPath}/out`;
+const path = require('./path.js');
 
 module.exports = {
 
-    transcode: async (incomingFilePromise,{ codec, extension} = {}) => {
+    setup: async () => {
+        console.log("cp ffmpeg");
+        return exec(`cp /var/task/bin/ffmpeg /tmp/.; chmod 755 /tmp/ffmpeg;`)
+    },
 
-        console.log('create data folder');
-        await exec(`mkdir -p ${dataPath}`);
-
-        console.log('write incoming file to disk and copy ffmpeg to tmp folder');
-        await Promise.all([
-            writeFile(storeInPath, await incomingFilePromise),
-            exec(`cp /var/task/ffmpeg/ffmpeg /tmp/.; chmod 755 /tmp/ffmpeg;`)
-        ]);
+    transcode: async ({codec, extension} = {}) => {
         console.log('transcode file...');
-        await exec(`/tmp/ffmpeg -y -i ${storeInPath} -acodec ${codec} -mode mono -ac 1 ${storeOutPath}${extension}`);
+        await exec(`/tmp/ffmpeg -y -i ${path.in} -acodec ${codec} -mode mono -ac 1 ${path.out}${extension}`);
         console.log('... and read outgoing file');
-        return readFile(storeOutPath + extension);
+        return readFile(`${path.out}${extension}`);
     }
 };

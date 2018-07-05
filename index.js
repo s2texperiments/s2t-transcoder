@@ -1,5 +1,9 @@
-const ffmpeg = require('./ffmpeg.js');
 const s3Api = require('./s3Api.js');
+const path = require('./path.js');
+const file = require('./file.js');
+const ffmpeg = require('./ffmpeg.js');
+const ffprobe = require('./ffprobe.js');
+
 
 exports.handler = async (event) => {
 
@@ -18,23 +22,37 @@ exports.handler = async (event) => {
         }
     } = JSON.parse(Message);
 
+    console.log(`Create base folder  ${path.base}`);
+    await exec(`mkdir -p ${path.base}`);
+
+    let Metadata;
+    let incomingFile = s3Api.getObject({
+        Bucket: inBucket,
+        Key: inKey
+    }).then(e => {
+        Metadata = e.Metadata;
+        return e;
+    }).then(e => e.Body);
+
+    await Promise.all([
+        file.setup(incomingFile),
+        ffmpeg.setup(),
+        ffprobe.setup()
+    ]);
+
     console.log('start transcoding');
-    let meta;
-    let outgoingFile = await ffmpeg.transcode(s3Api.getObject({
-            Bucket: inBucket,
-            Key: inKey
-        }).then(e => {
-            meta = e.Metadata;
-            return e;
-        }).then(e => e.Body),
-        getCodecInfo(codec));
+    let Body = await ffmpeg.transcode(getCodecInfo(codec));
+    let {streams: [sample_rate]} = await ffprobe.report(getCodecInfo(codec));
+    console.log(`detected sample rate: ${sample_rate}`);
 
     console.log('put transcoded file so s3');
-    await s3Api.putObject({
+    return s3Api.putObject({
         Bucket: outBucket,
         Key: outKey,
-        Body: outgoingFile,
-        Metadata:meta
+        Body,
+        Metadata: {
+            ...Metadata, ...{"sample-rate": sample_rate}
+        }
     });
 };
 
@@ -48,7 +66,7 @@ const getCodecInfo = (codec) => {
         case "flac":
             return {
                 codec: "flac",
-                extension:".flac"
+                extension: ".flac"
             };
         default:
             throw "unknown codec"
