@@ -3,6 +3,8 @@ const path = require('./path.js');
 const file = require('./file.js');
 const ffmpeg = require('./ffmpeg.js');
 const ffprobe = require('./ffprobe.js');
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
 
 
 exports.handler = async (event) => {
@@ -42,8 +44,10 @@ exports.handler = async (event) => {
 
     console.log('start transcoding');
     let Body = await ffmpeg.transcode(getCodecInfo(codec));
-    let {streams: [sample_rate]} = await ffprobe.report(getCodecInfo(codec));
-    console.log(`detected sample rate: ${sample_rate}`);
+    let report = await ffprobe.report(getCodecInfo(codec));
+    console.log(`report: ${report}`);
+    let {streams: [{sample_rate}]} = report;
+    console.log(`detected sample rate: ${JSON.stringify(sample_rate)}`);
 
     console.log('put transcoded file so s3');
     return s3Api.putObject({

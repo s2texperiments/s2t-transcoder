@@ -14,7 +14,7 @@ module.exports = {
         return exec(`cp /var/task/bin/ffprobe /tmp/.; chmod 755 /tmp/ffprobe;`)
     },
 
-    report: async (incomingFilePromise, {codec, extension} = {}) => {
+    report: async ({codec, extension} = {}) => {
         console.log('generate report');
         await exec(`/tmp/ffprobe -v quiet -print_format json -show_format -show_streams ${path.out}${extension} > ${path.report}`);
         console.log('... and read report');
