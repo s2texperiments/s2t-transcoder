@@ -20,7 +20,11 @@ exports.handler = async (event) => {
         out: {
             bucket: outBucket,
             key: outKey,
-            codec
+            codec: outCodec,
+
+            trimEnabled = false,
+            trimFrom = 0,
+            trimTo = 180
         }
     } = JSON.parse(Message);
 
@@ -43,8 +47,8 @@ exports.handler = async (event) => {
     ]);
 
     console.log('start transcoding');
-    let Body = await ffmpeg.transcode(getCodecInfo(codec));
-    let report = await ffprobe.report(getCodecInfo(codec));
+    let Body = await ffmpeg.transcode({...getCodecInfo(outCodec), ...{trimEnabled, trimFrom, trimTo}});
+    let report = await ffprobe.report(getCodecInfo(outCodec));
     console.log(`report: ${report}`);
     let {streams: [{sample_rate}]} = report;
     console.log(`detected sample rate: ${JSON.stringify(sample_rate)}`);
